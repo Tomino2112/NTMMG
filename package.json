@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/Tomino2112/NTMMG#readme",
   "dependencies": {
+    "commander": "^2.9.0",
+    "fs": "0.0.2",
     "mysql": "^2.10.2",
     "squel": "^4.2.3"
   }

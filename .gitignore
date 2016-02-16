@@ -4,6 +4,12 @@ node_modules
 bower_components
 typings
 
+# Ignore my config
+config.json
+
+# ignore my models
+models
+
 # Commit only typescript files
 *.js
 *.map
