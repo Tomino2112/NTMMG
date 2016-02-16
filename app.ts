@@ -35,9 +35,14 @@ let connection: IConnection = mysql.createConnection({
 
 // Nothing to process
 if (!program.tables && !program.all){
+    console.log("You must specify either tables to process or -a flag to process all");
     process.exit(1);
 }
 
+// Generate base model
+generateBaseModel();
+
+// Process tables
 if (program.all) {
     // Get list of tables
     let query = squel
@@ -79,7 +84,14 @@ function generateModel(tableName){
         }
 
         let parsedName = parseTableName(tableName);
-        let output = "interface I"+parsedName+" {\r\n";
+
+        let output = "";
+
+        output += "import * as BaseModel from \"./db_model\";\r\n";
+
+        output += "\r\n";
+
+        output += "interface I"+parsedName+" {\r\n";
 
         for(let i=0;i<result.length;i++){
             output += "    "+result[i].Field+((result[i].Null === 'YES')?"?":"")+": "+getTSType(result[i].Type)+";\r\n";
@@ -89,7 +101,9 @@ function generateModel(tableName){
 
         output += "\r\n";
 
-        output += "class "+parsedName+" implements I"+parsedName+" { \r\n";
+        output += "class "+parsedName+" extends BaseModel implements I"+parsedName+" { \r\n";
+
+        output += "    static tableName: string = \"" + tableName+"\";\r\n\r\n";
 
         // @todo Repetition
         for(let i=0;i<result.length;i++){
@@ -142,4 +156,94 @@ function parseTableName(tableName){
     }
 
     return parts.join('');
+}
+
+function generateBaseModel(){
+    let output = "";
+
+    output += "import * as mysql from \"mysql\";\r\n";
+    output += "import * as squel from \"squel\";\r\n";
+
+    output += "\r\n";
+
+    output += "const db = mysql.createConnection({\r\n";
+    output += "    \"database\" : \""+config.database+"\",\r\n";
+    output += "    \"host\"     : \""+config.host+"\",\r\n";
+    output += "    \"password\" : \""+config.password+"\",\r\n";
+    output += "    \"user\"     : \""+config.user+"\"\r\n";
+    output += "});\r\n";
+
+    output += "\r\n";
+
+    output += "class QueryBuilder {\r\n";
+    output += "    select = squel.select();\r\n";
+    output += "    insert = squel.insert();\r\n";
+    output += "    update = squel.update();\r\n";
+    output += "    remove = squel.delete();\r\n";
+    output += "\r\n";
+    output += "    constructor(){\r\n";
+    output += "        this.select.execute = this.insert.execute = this.update.execute = this.remove.execute = this.execute;\r\n";
+    output += "\r\n";
+    output += "        this.select.exists = this.exists;\r\n";
+    output += "        this.select.scalar = this.scalar;\r\n";
+    output += "        this.select.count = this.count;\r\n";
+    output += "        this.select.one = this.one;\r\n";
+    output += "        this.select.all = this.execute;\r\n";
+    output += "    }\r\n";
+    output += "\r\n";
+    output += "    private execute(callback){\r\n";
+    output += "        //console.log(this.toString());\r\n";
+    output += "        db.query(this.toString(), callback);\r\n";
+    output += "    }\r\n";
+    output += "\r\n";
+    output += "    private one(callback){\r\n";
+    output += "        this.limit(1).execute((err, res) => {\r\n";
+    output += "            callback(err, res[0] || undefined);\r\n";
+    output += "        });\r\n";
+    output += "    }\r\n";
+    output += "\r\n";
+    output += "    private count(callback){\r\n";
+    output += "        this.execute((err, res) => {\r\n";
+    output += "            callback(err, res.length || 0);\r\n";
+    output += "        });\r\n";
+    output += "    }\r\n";
+    output += "\r\n";
+    output += "    private exists(callback){\r\n";
+    output += "        this.execute((err, res) => {\r\n";
+    output += "            callback(err, (res && res.length)?true:false);\r\n";
+    output += "        });\r\n";
+    output += "    }\r\n";
+    output += "\r\n";
+    output += "    private scalar(callback){\r\n";
+    output += "        this.execute((err, res) => {\r\n";
+    output += "            callback(err, (res && res.length)?res[0][Object.keys(res[0])[0]]: undefined);\r\n";
+    output += "        });\r\n";
+    output += "    }\r\n";
+    output += "}\r\n";
+
+    output += "\r\n";
+
+    output += "class BaseModel {\r\n";
+    output += "    static tableName: string;\r\n";
+    output += "\r\n";
+    output += "    static find(){\r\n";
+    output += "        var builder = new QueryBuilder();\r\n";
+    output += "        return builder.select.from(this.tableName);\r\n";
+    output += "    }\r\n";
+    output += "\r\n";
+    output += "    public save(){}\r\n";
+    output += "    public update(){}\r\n";
+    output += "    public remove(){} // @todo: because cannot use delete\r\n";
+    output += "}\r\n";
+
+    output += "\r\n";
+
+    output += "export = BaseModel;";
+
+    // @todo: could be name collision - config
+    fs.writeFile(program.output+'db_model.ts',output,(err) => {
+        if (err) throw err;
+
+        console.log('Base model generated!');
+    });
 }
