@@ -1,0 +1,9 @@
+# Project and dependency directories
+.idea
+node_modules
+bower_components
+typings
+
+# Commit only typescript files
+*.js
+*.map

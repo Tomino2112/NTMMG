@@ -1,0 +1,6 @@
+{
+  "name": "ntmmg",
+  "ambientDependencies": {
+    "mysql": "github:DefinitelyTyped/DefinitelyTyped/mysql/mysql.d.ts#8ac2edf817ab77a00f0d2a1a53bb46eb2a466067"
+  }
+}
