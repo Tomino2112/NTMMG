@@ -87,11 +87,11 @@ function generateModel(tableName){
 
         let output = "";
 
-        output += "import * as BaseModel from \"./db_model\";\r\n";
+        output += "import BaseModel from \"./db_model\";\r\n";
 
         output += "\r\n";
 
-        output += "interface I"+parsedName+" {\r\n";
+        output += "export interface I"+parsedName+" {\r\n";
 
         for(let i=0;i<result.length;i++){
             output += "    "+result[i].Field+((result[i].Null === 'YES')?"?":"")+": "+getTSType(result[i].Type)+";\r\n";
@@ -103,18 +103,18 @@ function generateModel(tableName){
 
         output += "class "+parsedName+" extends BaseModel implements I"+parsedName+" { \r\n";
 
-        output += "    static tableName: string = \"" + tableName+"\";\r\n\r\n";
+        output += "    public static tableName: string = \"" + tableName+"\";\r\n\r\n";
 
         // @todo Repetition
         for(let i=0;i<result.length;i++){
-            output += "    "+result[i].Field+": "+getTSType(result[i].Type)+";\r\n";
+            output += "    public "+result[i].Field+": "+getTSType(result[i].Type)+";\r\n";
         }
 
         output += "}\r\n";
 
         output += "\r\n";
 
-        output += "export = "+parsedName+";\r\n";
+        output += "export default "+parsedName+";\r\n";
 
         fs.writeFile(program.output+tableName+'.ts',output,(err) => {
             if (err) throw err;
@@ -209,14 +209,14 @@ function generateBaseModel(){
     output += "    }\r\n";
     output += "\r\n";
     output += "    private exists(callback){\r\n";
-    output += "        this.execute((err, res) => {\r\n";
+    output += "        this.one((err, res) => {\r\n";
     output += "            callback(err, (res && res.length)?true:false);\r\n";
     output += "        });\r\n";
     output += "    }\r\n";
     output += "\r\n";
     output += "    private scalar(callback){\r\n";
-    output += "        this.execute((err, res) => {\r\n";
-    output += "            callback(err, (res && res.length)?res[0][Object.keys(res[0])[0]]: undefined);\r\n";
+    output += "        this.one((err, res) => {\r\n";
+    output += "            callback(err, (res) ? res[Object.keys(res)[0]] : undefined);\r\n";
     output += "        });\r\n";
     output += "    }\r\n";
     output += "}\r\n";
@@ -224,9 +224,9 @@ function generateBaseModel(){
     output += "\r\n";
 
     output += "class BaseModel {\r\n";
-    output += "    static tableName: string;\r\n";
+    output += "    public static tableName: string;\r\n";
     output += "\r\n";
-    output += "    static find(){\r\n";
+    output += "    public static find(){\r\n";
     output += "        var builder = new QueryBuilder();\r\n";
     output += "        return builder.select.from(this.tableName);\r\n";
     output += "    }\r\n";
@@ -238,7 +238,7 @@ function generateBaseModel(){
 
     output += "\r\n";
 
-    output += "export = BaseModel;";
+    output += "export default BaseModel;\r\n";
 
     // @todo: could be name collision - config
     fs.writeFile(program.output+'db_model.ts',output,(err) => {
