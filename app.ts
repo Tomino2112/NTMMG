@@ -27,10 +27,10 @@ const config = require(program.config);
 
 // Create mysql connection
 let connection: IConnection = mysql.createConnection({
-    database : config.database,
-    host     : config.host,
-    password : config.password,
-    user     : config.user,
+    database : config.db.database,
+    host     : config.db.host,
+    password : config.db.password,
+    user     : config.db.user,
 });
 
 // Nothing to process
@@ -40,7 +40,7 @@ if (!program.tables && !program.all){
 }
 
 // Generate base model
-generateBaseModel();
+generateTemplates();
 
 // Process tables
 if (program.all) {
@@ -49,7 +49,7 @@ if (program.all) {
         .select()
         .field('table_name')
         .from('information_schema.tables')
-        .where('table_schema=?',config.database)
+        .where('table_schema=?',config.db.database)
         .toString();
 
     connection.query(query, (err, result) => {
@@ -87,9 +87,11 @@ function generateModel(tableName){
 
         let output = "";
 
-        output += "import BaseModel from \"./db_model\";\r\n";
+        if (config.baseModel) {
+            output += "import {BaseModel as "+config.baseModel.className+"} from \"./"+config.baseModel.fileName+"\";\r\n";
 
-        output += "\r\n";
+            output += "\r\n";
+        }
 
         output += "export interface I"+parsedName+" {\r\n";
 
@@ -101,7 +103,7 @@ function generateModel(tableName){
 
         output += "\r\n";
 
-        output += "class "+parsedName+" extends BaseModel implements I"+parsedName+" { \r\n";
+        output += "export class "+parsedName+" "+((config.baseModel)?"extends "+config.baseModel.className:"")+" implements I"+parsedName+" { \r\n";
 
         output += "    public static tableName: string = \"" + tableName+"\";\r\n\r\n";
 
@@ -111,10 +113,6 @@ function generateModel(tableName){
         }
 
         output += "}\r\n";
-
-        output += "\r\n";
-
-        output += "export default "+parsedName+";\r\n";
 
         fs.writeFile(program.output+tableName+'.ts',output,(err) => {
             if (err) throw err;
@@ -127,10 +125,12 @@ function generateModel(tableName){
 function getTSType(type){
     const numbers = ['int', 'decimal', 'bigint', 'serial', 'bit', 'tinyint', 'smallint', 'mediumint', 'integer', 'dec', 'float', 'double'];
     const strings = ['char', 'varchar', 'text', 'enum', 'binary', 'varbinary', 'tinyblob', 'tinytext', 'blob', 'mediumblob', 'mediumtext', 'longblog', 'longtext', 'set'];
+    const date = ['date', 'datetime', 'timestamp'];
     const booleans = ['boolean'];
 
     if (checkISType(type, numbers)) return 'number';
     if (checkISType(type, strings)) return 'string';
+    if (checkISType(type, date)) return 'Date';
     if (checkISType(type, booleans)) return 'boolean';
 
     return 'any';
@@ -158,92 +158,11 @@ function parseTableName(tableName){
     return parts.join('');
 }
 
-function generateBaseModel(){
-    let output = "";
-
-    output += "import * as mysql from \"mysql\";\r\n";
-    output += "import * as squel from \"squel\";\r\n";
-
-    output += "\r\n";
-
-    output += "const db = mysql.createConnection({\r\n";
-    output += "    \"database\" : \""+config.database+"\",\r\n";
-    output += "    \"host\"     : \""+config.host+"\",\r\n";
-    output += "    \"password\" : \""+config.password+"\",\r\n";
-    output += "    \"user\"     : \""+config.user+"\"\r\n";
-    output += "});\r\n";
-
-    output += "\r\n";
-
-    output += "class QueryBuilder {\r\n";
-    output += "    select = squel.select();\r\n";
-    output += "    insert = squel.insert();\r\n";
-    output += "    update = squel.update();\r\n";
-    output += "    remove = squel.delete();\r\n";
-    output += "\r\n";
-    output += "    constructor(){\r\n";
-    output += "        this.select.execute = this.insert.execute = this.update.execute = this.remove.execute = this.execute;\r\n";
-    output += "\r\n";
-    output += "        this.select.exists = this.exists;\r\n";
-    output += "        this.select.scalar = this.scalar;\r\n";
-    output += "        this.select.count = this.count;\r\n";
-    output += "        this.select.one = this.one;\r\n";
-    output += "        this.select.all = this.execute;\r\n";
-    output += "    }\r\n";
-    output += "\r\n";
-    output += "    private execute(callback){\r\n";
-    output += "        //console.log(this.toString());\r\n";
-    output += "        db.query(this.toString(), callback);\r\n";
-    output += "    }\r\n";
-    output += "\r\n";
-    output += "    private one(callback){\r\n";
-    output += "        this.limit(1).execute((err, res) => {\r\n";
-    output += "            callback(err, res[0] || undefined);\r\n";
-    output += "        });\r\n";
-    output += "    }\r\n";
-    output += "\r\n";
-    output += "    private count(callback){\r\n";
-    output += "        this.execute((err, res) => {\r\n";
-    output += "            callback(err, res.length || 0);\r\n";
-    output += "        });\r\n";
-    output += "    }\r\n";
-    output += "\r\n";
-    output += "    private exists(callback){\r\n";
-    output += "        this.one((err, res) => {\r\n";
-    output += "            callback(err, (res && res.length)?true:false);\r\n";
-    output += "        });\r\n";
-    output += "    }\r\n";
-    output += "\r\n";
-    output += "    private scalar(callback){\r\n";
-    output += "        this.one((err, res) => {\r\n";
-    output += "            callback(err, (res) ? res[Object.keys(res)[0]] : undefined);\r\n";
-    output += "        });\r\n";
-    output += "    }\r\n";
-    output += "}\r\n";
-
-    output += "\r\n";
-
-    output += "class BaseModel {\r\n";
-    output += "    public static tableName: string;\r\n";
-    output += "\r\n";
-    output += "    public static find(){\r\n";
-    output += "        var builder = new QueryBuilder();\r\n";
-    output += "        return builder.select.from(this.tableName);\r\n";
-    output += "    }\r\n";
-    output += "\r\n";
-    output += "    public save(){}\r\n";
-    output += "    public update(){}\r\n";
-    output += "    public remove(){} // @todo: because cannot use delete\r\n";
-    output += "}\r\n";
-
-    output += "\r\n";
-
-    output += "export default BaseModel;\r\n";
-
+function generateTemplates(){
     // @todo: could be name collision - config
-    fs.writeFile(program.output+'db_model.ts',output,(err) => {
-        if (err) throw err;
+    if (config.baseModel) {
+        fs.createReadStream('./templates/base_model.ts').pipe(fs.createWriteStream(program.output + config.baseModel.fileName + '.ts'));
 
-        console.log('Base model generated!');
-    });
+        fs.createReadStream('./templates/query_builder.ts').pipe(fs.createWriteStream(program.output + 'query_builder.ts'));
+    }
 }

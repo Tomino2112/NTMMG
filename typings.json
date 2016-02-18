@@ -2,6 +2,7 @@
   "name": "ntmmg",
   "ambientDependencies": {
     "commander": "github:DefinitelyTyped/DefinitelyTyped/commander/commander.d.ts#6d09e1a5aea3240e7290be602ed03c88e38cd07d",
-    "mysql": "github:DefinitelyTyped/DefinitelyTyped/mysql/mysql.d.ts#8ac2edf817ab77a00f0d2a1a53bb46eb2a466067"
+    "mysql": "github:DefinitelyTyped/DefinitelyTyped/mysql/mysql.d.ts#8ac2edf817ab77a00f0d2a1a53bb46eb2a466067",
+    "squel": "github:hecof/squel.d.ts/squel.d.ts"
   }
 }

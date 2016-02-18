@@ -1,0 +1,12 @@
+{
+  "db": {
+    "database" : "db_name",
+    "host"     : "localhost",
+    "password" : "password",
+    "user"     : "user"
+  },
+  "baseModel": {
+    "className": "BaseModel",
+    "fileName": "base_model"
+  }
+}
