@@ -103,14 +103,16 @@ function generateModel(tableName){
 
         output += "\r\n";
 
-        output += "export class "+parsedName+" "+((config.baseModel)?"extends "+config.baseModel.className:"")+" implements I"+parsedName+" { \r\n";
+        output += "export class "+parsedName+" "+((config.baseModel)?"extends "+config.baseModel.className:"")+" { \r\n";
 
-        output += "    public static tableName: string = \"" + tableName+"\";\r\n\r\n";
+        output += "    public static tableName: string = \"" + tableName+"\";\r\n";
+        output += "    public attr: I" + parsedName + " = {\r\n";
 
-        // @todo Repetition
         for(let i=0;i<result.length;i++){
-            output += "    public "+result[i].Field+": "+getTSType(result[i].Type)+";\r\n";
+            output += "        "+result[i].Field+": undefined,\r\n";
         }
+
+        output += "    };\r\n";
 
         output += "}\r\n";
 
