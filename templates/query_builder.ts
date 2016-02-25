@@ -11,6 +11,16 @@ import {IError} from "mysql";
 
 let db: any = undefined;
 
+// Register handle for dates
+squel.registerValueHandler(Date, (date: Date) => {
+    return "'" + date.getFullYear() + "-" +
+        (date.getMonth() + 1) + "-" +
+        date.getDate() + " " +
+        (date.getHours() < 10 ? "0" : "") + date.getHours() + ":" +
+        (date.getMinutes() < 10 ? "0" : "") + date.getMinutes() + ":" +
+        (date.getSeconds() < 10 ? "0" : "") + date.getSeconds() + "'";
+});
+
 // Extending squel interfaces
 export interface ISqlExecute {
     (callback: any): void;
@@ -29,7 +39,7 @@ export interface ISqlSelect extends SqlSelect {
     one(callback: (err: IError, res: any[]) => void): void;
     all(callback: (err: IError, res: any[]) => void): void;
 
-    createSelectReturn(data): any[];
+    createSelectReturn(data: any): any;
 }
 
 export interface ISqlInsert extends SqlInsert {
@@ -45,12 +55,12 @@ export interface ISqlDelete extends SqlDelete {
 }
 
 export class QueryBuilder {
-    private select: ISqlSelect = squel.select();
-    private insert: ISqlInsert = squel.insert();
-    private update: ISqlUpdate = squel.update();
-    private remove: ISqlDelete = squel.delete();
+    public select: ISqlSelect = squel.select();
+    public insert: ISqlInsert = squel.insert();
+    public update: ISqlUpdate = squel.update();
+    public remove: ISqlDelete = squel.delete();
 
-    constructor(model){
+    constructor(model?: any){
         this.select.execute = this.insert.execute = this.update.execute = this.remove.execute = this.execute;
 
         this.select.asArray = this.asArray;
@@ -71,7 +81,7 @@ export class QueryBuilder {
         return this; // this refers to this.select
     }
 
-    public execute(callback: (err: IError, res: any[]) => void): void{
+    public execute(callback: (err: IError, res: any[]) => void): void {
         // @todo: make this NODE_ENV === development
         console.log("Running SQL query: " + this.toString());
         db.query(this.toString(), callback);
@@ -85,30 +95,31 @@ export class QueryBuilder {
 
     public one(callback: (err: IError, res: any[]) => void): void {
         this.limit(1).execute((err: IError, res: any[]) => {
-            callback(err, this.createSelectReturn(res)[0] || undefined);
+            let output: any = (res) ? this.createSelectReturn(res)[0] : undefined;
+            callback(err, output);
         });
     }
 
     public count(callback: (err: IError, res: number) => void): void {
-        this.execute((err: IError, res: any[]) => {
+        this.asArray().execute((err: IError, res: any[]) => {
             callback(err, res.length || 0);
         });
     }
 
     public exists(callback: (err: IError, res: boolean) => any): void {
-        this.one((err: IError, res: any[]) => {
-            callback(err, (res && res.length) ? true : false);
+        this.asArray().one((err: IError, res: any[]) => {
+            callback(err, (res) ? true : false);
         });
     }
 
     public scalar(callback: (err: IError, res: any) => void): void {
-        this.one((err: IError, res: any[]) => {
-            callback(err, (res) ? res[Object.keys(res)[0]] : undefined);
+        this.asArray().one((err: IError, res: any) => {
+            callback(err, (res) ? res[Object.keys(res)] : undefined);
         });
     }
 
     // @todo This logis should not be here, but has to be at the moment if we want to chain squel
-    private createSelectReturn(data): any[]{
+    private createSelectReturn(data: any): any{
         // Check data and return if not ready for models
         if (!data || this.returnAsArray){
             return data;
@@ -116,15 +127,15 @@ export class QueryBuilder {
 
         if (!this.returnAsArray && !this.model){
             // @todo Should probably throw error
-            console.log('Should return results as models, but no model supplied');
+            console.log("Error: Should return results as models, but no model supplied");
             return data;
         }
 
         // Create models
-        let models = [];
+        let models: any = [];
 
-        for(let i=0;i<data.length;i++){
-            let model = new this.model();
+        for (let i: number = 0 ; i < data.length ; i++){
+            let model: any = new this.model();
             model.setAttributes(data[i]);
             model.isNew = false;
 
