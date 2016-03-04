@@ -9,7 +9,7 @@ import {IError} from "mysql";
  * example: import db from "./mysql"
  */
 
-let db: any = undefined;
+let db;
 
 // Register handle for dates
 squel.registerValueHandler(Date, (date: Date) => {
@@ -136,7 +136,7 @@ export class QueryBuilder {
 
         for (let i: number = 0 ; i < data.length ; i++){
             let model: any = new this.model();
-            model.setAttributes(data[i]);
+            model.setAttributes(data[i], true);
             model.isNew = false;
 
             models.push(model);

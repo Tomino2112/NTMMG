@@ -1,14 +1,21 @@
 import {QueryBuilder, ISqlSelect} from "./query_builder";
-import {BadRequestHttpError} from "../../components/http_errors";
 import {ISqlInsert} from "./query_builder";
 import {IError} from "mysql";
 import {ISqlUpdate} from "./query_builder";
+import {ISqlDelete} from "./query_builder";
+
+export interface IModelValidationRule {
+    attrs: String[];
+    validator: Function;
+}
 
 export class BaseModel {
     public static tableName: string;
 
     public attr: any;
     public oldAttr: any = {};
+
+    public rules: IModelValidationRule[] = [];
 
     public tableName: string;
     public isNew: boolean = true;
@@ -23,21 +30,33 @@ export class BaseModel {
         return builder.select.from(this.tableName);
     }
 
-    public setAttributes(attributes: Object): void {
+    // @todo: I dont like "copyToOld" param
+    public setAttributes(attributes: Object, copyToOld: boolean = false): void {
         for (let k in this.attr){
-            if (this.attr.hasOwnProperty(k)){
+            if (this.attr.hasOwnProperty(k) && attributes.hasOwnProperty(k)){
                 this.attr[k] = attributes[k];
-                this.oldAttr[k] = attributes[k];
+
+                if (copyToOld){
+                    this.oldAttr[k] = attributes[k];
+                }
             }
         }
     }
 
     // @todo Validation
-    public validate(): boolean { return true; }
+    public validate(): boolean {
+        for (let k in this.attr){
+            if (!this.attr.hasOwnProperty(k)){
+                continue;
+            }
+
+
+        }
+    }
 
     public save(callback: Function): void {
         if (!this.validate()){
-            return callback(new BadRequestHttpError());
+            return callback(new Error());
         }
 
         if (this.isNew){
@@ -49,7 +68,6 @@ export class BaseModel {
 
     public insert(callback: Function): void {
         let builder: QueryBuilder = new QueryBuilder();
-
         let command: ISqlInsert = builder.insert;
 
         command.into(this.tableName);
@@ -77,13 +95,13 @@ export class BaseModel {
 
     public update(callback: Function): void {
         let builder: QueryBuilder = new QueryBuilder();
-
         let command: ISqlUpdate = builder.update;
 
-        command.table(this.tableName)
-            .where("id=?", this.attr.id);
+        command.table(this.tableName).where("id=?", this.attr.id);
 
-        // @todo At the moment updating all values, we should probably have some whitelist
+        let fieldsCount: number = 0;
+
+        // @todo At the moment updating all values, we should have equivalent of "safe" in Yii
         for (let k in this.attr){
             // @todo: Not always will primary key be "id"
             if (!this.attr.hasOwnProperty(k) || k === "id") {
@@ -91,16 +109,42 @@ export class BaseModel {
             }
 
             if (this.attr[k] && this.attr[k] !== this.oldAttr[k]){
+                fieldsCount++;
                 command.set(k, this.attr[k]);
             }
         }
 
-        command.execute((err: IError, res: any) => {
-            // @todo: Should we set isNew of model to false?
+        if (fieldsCount > 0){
+            command.execute((err: IError, res: any) => {
+                // @todo: Should we set isNew of model to false?
 
-            callback(err, (!err) ? this : undefined);
-        });
+                // Clone new attr to old
+                this.cloneAttr();
+
+                callback(err, (!err) ? this : undefined);
+            });
+        } else {
+            // Nothing to update
+            callback(undefined, this);
+        }
     }
 
-    public remove(): void { return; }
+    public remove(callback: Function): void {
+        let builder: QueryBuilder = new QueryBuilder();
+        let command: ISqlDelete = builder.remove;
+
+        command.from(this.tableName)
+            .where("id=?", this.attr.id)
+            .execute((err: IError, res: any) => {
+                callback(err, (!err));
+            });
+    }
+
+    // @todo: I dont like this here...
+    private cloneAttr(): void {
+        this.oldAttr = Object.keys(this.attr).reduce((obj: any, item: string) => {
+            obj[item] = this.attr[item];
+            return obj;
+        },{});
+    }
 }

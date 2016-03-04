@@ -89,6 +89,7 @@ function generateModel(tableName){
 
         if (config.baseModel) {
             output += "import {BaseModel as "+config.baseModel.className+"} from \"./"+config.baseModel.fileName+"\";\r\n";
+            output += "import {IModelValidationRule} from \"./"+config.baseModel.fileName+"\";\r\n";
 
             output += "\r\n";
         }
@@ -106,6 +107,11 @@ function generateModel(tableName){
         output += "export class "+parsedName+" "+((config.baseModel)?"extends "+config.baseModel.className:"")+" { \r\n";
 
         output += "    public static tableName: string = \"" + tableName+"\";\r\n";
+        output += "\r\n";
+        output += "    public safe: String[] = [];\r\n";
+        output += "\r\n";
+        output += "    public rules: IModelValidationRule[] = [];\r\n"; // @todo: If not using base model, this will yeld error
+        output += "\r\n";
         output += "    public attr: I" + parsedName + " = {\r\n";
 
         for(let i=0;i<result.length;i++){
