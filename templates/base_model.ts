@@ -49,9 +49,8 @@ export class BaseModel {
             if (!this.attr.hasOwnProperty(k)){
                 continue;
             }
-
-
         }
+        return true;
     }
 
     public save(callback: Function): void {
